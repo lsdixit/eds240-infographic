@@ -1,7 +1,15 @@
 ---
-title: "exploration"
-format: html
+title: "Preliminary Exploration"
+format: pdf
+author: "Leela Dixit"
+date: "2/2/2024"
+warning: false
+message: false
 ---
+
+This file contains the preliminary data exploration for the final project infographic for EDS 240 - Data Visualization and Communication. 
+
+The general theme of this infographic is examining the successes and complications for the White Abalone Captive Breeding Program. This program was created in the interest of conserving the endagered White Abalone through captive breeding efforts. Over the last decade, this program has created millions of abalone but are still magnitudes under what is necessary to save this species. This project will focus specifically on reproductive patterns in the various stages of the life cycle present during captive breeding efforts.
 
 ### Load packages
 ```{r}
@@ -30,6 +38,8 @@ pedigree <- read_csv(here("data", "White_Abalone_Pedigree_Data_Metadata(Pedigree
 
 ## Wrangle data
 ```{r}
+#| output: false
+
 # reconcile multiple pop_ids/messy naming conventions 
 # when dates do not match, choosing the younger one
 unique(vitals$pop_id)
@@ -123,7 +133,8 @@ spawn_clean <- spawn %>%
 spawn_clean %>% 
   filter(!is.na(egg_count)) %>% 
   ggplot(aes(x = age, y = egg_count)) +
-  geom_col()
+  geom_col() +
+  labs(title = "Female spawning by age")
 
 # male age vs. spawn
 spawn_clean %>% 
@@ -133,7 +144,8 @@ spawn_clean %>%
   summarise(n = n()) %>% 
   ungroup() %>% 
   ggplot(aes(x = age, y = n)) +
-  geom_col()
+  geom_col() +
+  labs(title = "Male spawning by age")
 ```
 
 Juveniles
@@ -154,7 +166,8 @@ vitals_clean %>%
   summarise(n = n()) %>% 
   ungroup() %>% 
   ggplot(aes(x = year, y = n)) +
-  geom_col()
+  geom_col() +
+  labs(title = "Number of outplanting sized abalone per year")
 
 # maybe overlay how many were sent off for outplanting
 
@@ -170,7 +183,8 @@ counts_clean %>%
   summarise(count = sum(count)) %>% 
   ungroup() %>% 
   ggplot(aes(x = as.factor(year), y = count)) +
-  geom_col()
+  geom_col() +
+  labs(title = "Total number of non-broodstock per year")
 ```
 
 ```{r}
@@ -203,15 +217,18 @@ spawn_clean %>%
   summarise(egg_count = sum(egg_count, na.rm = TRUE),
             .groups = "drop") %>% 
   ggplot(aes(y = pop_id, x = egg_count)) + 
-  geom_col()
+  geom_col() +
+  labs(title = "Number of eggs spawned per female population")
 
 spawn_clean %>% 
   filter(is.na(egg_count)) %>%  
   group_by(pop_id) %>% 
   summarise(spawn_count = sum(!is.na(time_initial_spawn)),
             .groups = "drop") %>% 
+  arrange(-spawn_count) %>% 
   ggplot(aes(x = spawn_count, y = pop_id)) +
-  geom_col()
+  geom_col() +
+  labs(title = "Number of times spawned per male population")
 
 # find out which popIDs are parents of the others, a Sankey diagram may work well for that
 spawned <- c("Squidward", "BioNTech", "Smaug", "Ursula", "Spongebob", "Patrick", "Tiana", "Merida", "Belle", "Pomo", "Ash", "Sequoia", "Fozzie", "Beaker", "Rowlf", "Janice", "DrTeeth", "Scooter", "16-03-02-Acjachemen", "16-03-02-Tongva", "16-03-02-Miwok", "16-03-02-Chumash", "16-03-02-Kumeyaay", "16-03-02-Salinan") %>% 
@@ -242,8 +259,10 @@ Has juvenile abalone survival improved over time? Do genetic lines survive more?
 I think the final questions I have decided to visualize are:
 How often do male/female abalone spawn over their lifetime?
   - I think I have all the data and can wrangle appropriately for this question.
+
 Has the program yielded more outplanting size OR juvenile aged abalone over time? 
-  - This question might require some restructuring of the data. My exploratory plots didn't show a big increase in abalone over time, but from my experience in the program I KNOW there were more, so I don't think I am summarizing the data appropriately and need to explore that more.
+  - This question might require some restructuring of the data. My exploratory plots didn't show a big increase in abalone over time, but from my experience in the program I KNOW there were more, so I don't think I am summarizing the data appropriately and need to explore that more. I might also need to clean and wrangle data of which animals were sent off to add further descriptions for the oscillation of juvenile counts over time.
+
 Do certain populations spawn more, and do their offspring also spawn more? 
   - I need to join in pedigree data to indicate which population each spawned animal was from and that population's parentage. I was able to acquire data about pedigree's for each population. Because of the messy naming of populations, I will need to do some cleaning of the pedigree data to be able to be joined. 
 
