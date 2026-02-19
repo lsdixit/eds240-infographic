@@ -1,0 +1,56 @@
+---
+title: "First draft data visualizations for EDS240 infographic"
+format: html
+author: "Leela Dixit"
+date: "02/12/2026"
+---
+
+This file contains the first drafts of three data visualizations for the final project infographic for EDS 240 - Data Visualization and Communication. 
+
+The general theme of this infographic is examining the successes and complications for the White Abalone Captive Breeding Program. This program was created in the interest of conserving the endagered White Abalone through captive breeding efforts. Over the last decade, this program has created millions of abalone but are still magnitudes under what is necessary to save this species. This project will focus specifically on reproductive patterns in the various stages of the life cycle present during captive breeding efforts.
+
+### Research Questions
+
+The overall question for this infographic is:
+
+What conservation strides (and setbacks) has the White Abalone Captive Breeding Program had since its inception?
+
+Given that this program is based in advancing captive reproduction, we will focus on reproductive patterns in 3 life stages of white abalone:
+
+  - Adults: How do males and females differ in their reproductive output based on their age?
+  - Juveniles: Has the program increased the number of non-broodstock aged white abalone over time? How many of those have been sent for outplanting?
+  - Larvae/Pelagic Stages: Have different genetic lines of abalone spawned more, and have those offspring spawned?
+  
+### Variables
+
+Each visualization requires different variables, and different summarizing of those variables. We can break each down to see what we need to visualize:
+
+  - Adults: Sex (categorical), reproductive output (female - numeric, males - integer), age (integer)
+  - Juveniles: Non-broodstock abalone counts (integer), time (numeric, but treated as a factor), outplanting counts (integer)
+  - Larvae/Pelagic Stages: Genetic lines (categorical), reproductive output (female - numeric, males - integer)
+
+### Example Visualizations 
+
+We can search for similar visualizations to base our final visualizations off of based on our artistic vision and our variable types.
+
+1. Adults
+
+2. Juveniles
+
+3. Larvae
+
+We can also draw out our final visualizations by hand so we have a scaffold to work off of when creating the visualization in R.
+
+1. Adult
+
+2. Juveniles
+
+3. Larvae
+
+
+
+could pull egg counts from pop, then 6 month counts to see survival
+
+
+
+
