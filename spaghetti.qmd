@@ -1,0 +1,328 @@
+---
+title: "spaghetti"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r}
+# investigate the genetics of offspring
+
+genetics_female <- spawn_clean %>% 
+  group_by(pop_id) %>% 
+  summarise(egg_count = sum(egg_count, na.rm = TRUE),
+            .groups = "drop") %>% 
+  mutate(ratiof = egg_count / sum(egg_count))
+
+genetics_male <- spawn_clean %>% 
+  filter(is.na(egg_count)) %>%  
+  group_by(pop_id) %>% 
+  summarise(spawn_count = sum(!is.na(time_initial_spawn)),
+            .groups = "drop") %>%
+  mutate(ratiom = spawn_count / sum(spawn_count))
+
+genetics <- full_join(genetics_female, genetics_male) %>% 
+  mutate(mean_ratio = (ratiom + ratiof) / 2)
+
+# find out which popIDs are parents of the others, a Sankey diagram may work well for that
+spawned <- c("Squidward", "BioNTech", "Smaug", "Ursula", "Spongebob", "Patrick", "Tiana", "Merida", "Belle", "Pomo", "Ash", "Sequoia", "Fozzie", "Beaker", "Rowlf", "Janice", "DrTeeth", "Scooter", "16-03-02-Acjachemen", "16-03-02-Tongva", "16-03-02-Miwok", "16-03-02-Chumash", "16-03-02-Kumeyaay", "16-03-02-Salinan") %>% 
+  paste(collapse = "|")
+
+# filter for at least one parent that have spawned before 
+pedigree_clean <- pedigree %>% 
+  filter(if_any(c(mother_pop_id, father_pop_id), ~str_detect(., spawned)))
+# then filter for pedigree data only for animals that have spawned
+pedigree_clean <- pedigree_clean %>% 
+  filter(str_detect(pedigree_clean$pop_id, spawned)) %>% 
+  select(pop_id, mother_pop_id, father_pop_id, wild_parentage)
+```
+
+```{r}
+spawn_offspring_female <- spawn_clean %>% 
+  filter(!is.na(egg_count),
+         !is.na(progeny_pop_id)) %>% 
+  select(pop_id, egg_count, progeny_pop_id) %>% 
+  rename("parent" = "pop_id", 
+         "offspring" = "progeny_pop_id")
+
+spawn_offspring_male <- spawn_clean %>% 
+  filter(!is.na(time_initial_spawn),
+         is.na(egg_count),
+         !is.na(progeny_pop_id)) %>% 
+  select(pop_id, progeny_pop_id) %>% 
+  rename("parent" = "pop_id", 
+         "offspring" = "progeny_pop_id")
+
+df <- spawn_offspring_male %>% 
+  make_long(parent, offspring)
+
+ggplot(df, aes(x = x, 
+               next_x = next_x, 
+               node = node, 
+               next_node = next_node, 
+               fill = factor(node), 
+               label = node)) +
+  geom_sankey(flow.alpha = 0.5
+                      , node.color = "black"
+                      ,show.legend = FALSE)+
+  geom_sankey_label(size = 3, color = "black", fill= "white", hjust = -0.5)
+
+# genetics <- genetics %>% 
+#   left_join(pedigree_clean)
+```
+
+```{r}
+sankey <- pedigree %>% 
+  select(pop_id, mother_pop_id) %>% 
+  filter(!is.na(mother_pop_id)) %>% 
+  make_long(mother_pop_id, pop_id)
+
+test <- pedigree$pop_id %>% paste(collapse = "|")
+
+
+df <- pedigree %>% 
+  filter(!is.na(mother_pop_id)) %>% 
+  #filter(if_any(c(mother_pop_id), ~str_detect(., test))) %>% 
+  select(pop_id, mother_pop_id) %>%
+  separate_longer_delim(mother_pop_id, delim = ", ") %>% 
+  separate_longer_delim(mother_pop_id, delim = "/") %>% 
+  separate_longer_delim(mother_pop_id, delim = ";") %>% 
+  separate_longer_delim(mother_pop_id, delim = " OR ") %>% 
+  mutate(mother_pop_id = case_when(
+    mother_pop_id == "01-04-23-Scooter (GRN_310)" ~ "01-04-23-Scooter",
+    mother_pop_id == "13-04-04-Rowlf (ORN_032)" ~ "13-04-04-Rowlf",
+    mother_pop_id == "Parental PopIDs possible: 16-03-02-Acjachemen" ~ "16-03-02-Acjachemen",
+    mother_pop_id == "SEE NOTES. N=6 females:\nN=2 18-04-09-Ursula (NYL_667" ~ "18-04-09-Ursula",
+    mother_pop_id == "\nN=1 19-04-16-Patrick (NYL_681)" ~ "19-04-16-Patrick",
+    mother_pop_id == "\nN=1 16-03-02-Acjachemen" ~ "16-03-02-Acjachemen",
+    mother_pop_id == "16-03-02-Chumash (LAV_063)" ~ "16-03-02-Chumash",
+    mother_pop_id == "01-04-23-Scooter (GRN_364)" ~ "01-04-23-Scooter",
+    mother_pop_id == "13-04-04-Rowlf (ORN_017)" ~ "13-04-04-Rowlf",
+    mother_pop_id == "\nN=1 19-04-16-Spongebob (NGN_624)" ~ "19-04-16-Spongebob",
+    mother_pop_id == "17-03-01-Tiana (LAV_006)" ~ "17-03-01-Tiana",
+    mother_pop_id == "\nN=1 17-03-01-Merida" ~ "17-03-01-Merida",
+    mother_pop_id == "20-03-10-Smaug\n" ~ "20-03-10-Smaug",
+    TRUE ~ mother_pop_id
+  )) %>% 
+  filter(mother_pop_id != "NYL_677)",
+         mother_pop_id != "Unknown PopID BST Tank 5")
+
+unique(df$mother_pop_id)
+
+test <- df$pop_id %>% paste(collapse = "|")
+# second generation only
+test1 <- df %>% filter(grepl(test, mother_pop_id)) %>%
+  rename(f2 = mother_pop_id,
+         f3 = pop_id)
+# first generation only
+test2 <- df %>% filter(!grepl(test, mother_pop_id)) %>% 
+  rename(f1 = mother_pop_id,
+         f2 = pop_id)
+
+test3 <- full_join(test1, test2) %>% 
+  filter(!is.na(f1),
+         !is.na(f3)) %>% 
+  make_long(f1, f2, f3)
+
+dftest <- tibble(unique(df$mother_pop_id)) %>% 
+  rename(mother_pop_id = "unique(df$mother_pop_id)") %>% 
+  left_join(df) %>% 
+  rename(f1 = mother_pop_id,
+         mother_pop_id = pop_id) 
+  
+dftest1 <- dftest %>% 
+  filter(!f1 %in% mother_pop_id)
+
+dftest3 %>% 
+  filter(f2 %in% f3)
+
+dftest2 <- dftest %>% 
+  filter(f1 %in% mother_pop_id) %>% 
+  rename(mother_pop_id = f1,
+         f3 = mother_pop_id)
+
+dftest3 <- dftest1 %>% 
+  left_join(dftest2) %>% 
+  rename(f2 = mother_pop_id) %>% 
+  make_long(f1, f2, f3)
+
+dftest <- dftest %>% 
+  left_join(df) %>% 
+  rename(f2 = mother_pop_id,
+         f3 = pop_id)
+  make_long(f1, f2, f3)
+
+ggplot(dftest3, aes(x = x, 
+               next_x = next_x, 
+               node = node, 
+               next_node = next_node, 
+               fill = factor(node), 
+               label = node)) +
+  geom_sankey(flow.alpha = 0.5
+                      , node.color = "black"
+                      ,show.legend = FALSE) +
+  scale_fill_manual(values = c('17-03-15-Ponderosa' = "red",
+                               '17-01-31-Loblolly'  ="red"))
+```
+
+maybe just collate f2 and f3 into years...
+
+```{r}
+dftest4 <- dftest3 %>% 
+  mutate(f2_year = str_sub(f2, start = 1, end = 2),
+         f3_year = str_sub(f3, start = 1, end = 2)) %>% 
+  make_long(f1, f2_year, f3_year)
+```
+
+
+
+```{r}
+pedigree_clean <- pedigree %>% 
+  select(pop_id, mother_pop_id, father_pop_id) %>%
+  separate_longer_delim(mother_pop_id, delim = ", ") %>% 
+  separate_longer_delim(mother_pop_id, delim = "/") %>% 
+  separate_longer_delim(mother_pop_id, delim = ";") %>% 
+  separate_longer_delim(mother_pop_id, delim = " OR ") %>% 
+  separate_longer_delim(father_pop_id, delim = ", ") %>% 
+  separate_longer_delim(father_pop_id, delim = "/") %>% 
+  separate_longer_delim(father_pop_id, delim = ";") %>% 
+  separate_longer_delim(father_pop_id, delim = " OR ") %>% 
+  separate_longer_delim(father_pop_id, delim = ",") %>% 
+  separate_longer_delim(father_pop_id, delim = "\n") %>% 
+  mutate(mother_pop_id = case_when(
+    mother_pop_id == "01-04-23-Scooter (GRN_310)" ~ "01-04-23-Scooter",
+    mother_pop_id == "13-04-04-Rowlf (ORN_032)" ~ "13-04-04-Rowlf",
+    mother_pop_id == "Parental PopIDs possible: 16-03-02-Acjachemen" ~ "16-03-02-Acjachemen",
+    mother_pop_id == "SEE NOTES. N=6 females:\nN=2 18-04-09-Ursula (NYL_667" ~ "18-04-09-Ursula",
+    mother_pop_id == "\nN=1 19-04-16-Patrick (NYL_681)" ~ "19-04-16-Patrick",
+    mother_pop_id == "\nN=1 16-03-02-Acjachemen" ~ "16-03-02-Acjachemen",
+    mother_pop_id == "16-03-02-Chumash (LAV_063)" ~ "16-03-02-Chumash",
+    mother_pop_id == "01-04-23-Scooter (GRN_364)" ~ "01-04-23-Scooter",
+    mother_pop_id == "13-04-04-Rowlf (ORN_017)" ~ "13-04-04-Rowlf",
+    mother_pop_id == "\nN=1 19-04-16-Spongebob (NGN_624)" ~ "19-04-16-Spongebob",
+    mother_pop_id == "17-03-01-Tiana (LAV_006)" ~ "17-03-01-Tiana",
+    mother_pop_id == "\nN=1 17-03-01-Merida" ~ "17-03-01-Merida",
+    mother_pop_id == "20-03-10-Smaug\n" ~ "20-03-10-Smaug",
+    TRUE ~ mother_pop_id
+  )) %>% 
+  mutate(father_pop_id = case_when(
+    father_pop_id == "Parental PopIDs possible: 16-03-02-Acjachemen" ~ "16-03-02-Acjachemen",
+    father_pop_id == "13-04-04-Rowlf and" ~ "13-04-04-Rowlf",
+    father_pop_id == "or 13-03-02-Janice" ~ "13-03-02-Janice",
+    father_pop_id == "17-03-01-Merida (WHT_159)" ~ "17-03-01-Merida",
+    father_pop_id == "17-03-01-Belle (WHT(TAN?)_222)" ~ "17-03-01-Belle",
+    father_pop_id == "Jabalone Expt: 18-04-19-Ursula (NYL_672)" ~ "18-04-19-Ursula",
+    father_pop_id == "18-04-19-Ursula (NYL_669)" ~ "18-04-19-Ursula",
+    father_pop_id == "17-03-01-Belle (NGN_151)" ~ "17-03-01-Belle",
+    father_pop_id == "01-04-23-Scooter (GRN_371" ~ "01-04-23-Scooter",
+    father_pop_id == "13-03-02-Janice (ORN_001)" ~ "13-03-02-Janice",
+    father_pop_id == "01-04-23-Scooter(GRN_305" ~ "01-04-23-Scooter",
+    father_pop_id == "\n17-03-01-Belle (n=1) " ~ "17-03-01-Belle",
+    father_pop_id == "16-03-02-Salinan (n=1)" ~ "16-03-02-Salinan",
+    father_pop_id == "17-03-01-Belle (n=1) " ~ "17-03-01-Belle",
+    TRUE ~ father_pop_id
+  )) %>% 
+  filter(mother_pop_id != "NYL_677)",
+         mother_pop_id != "Unknown PopID BST Tank 5",
+         father_pop_id != "",
+         father_pop_id != "GRN_371)",
+         father_pop_id != "GRN_305)") %>% 
+  pivot_longer(cols = c(mother_pop_id, father_pop_id), 
+               names_to = "sex",
+               values_to = "parent_id") %>% 
+  distinct() # remove duplicate rows
+
+unique(pedigree_clean$parent_id)
+broodstock <- c("01-04-23-Scooter", "17-01-31-Loblolly", "17-11-13-Sequoia", "17-03-15-Ponderosa", "19-03-18-Ash", "13-04-04-Rowlf", "13-03-02-Janice", "12-06-14-DrTeeth", "14-04-30-Beaker,\n14-05-13-Fozzie", "14-04-30-Beaker", "17-05-19-Jeffrey")
+
+popid <- pedigree$pop_id
+parentid <- pedigree_clean$parent_id
+
+double <- pedigree_clean %>%
+  filter(parent_id %in% broodstock) %>% 
+  filter(!pop_id %in% parentid) %>% 
+  rename(F1 = parent_id,
+         F3 = pop_id)  
+  mutate(F2 = NA)
+
+test <- pedigree_clean %>% 
+  filter(parent_id %in% broodstock) %>% 
+  filter(pop_id %in% parentid) %>% 
+  rename(F1 = parent_id,
+         F2 = pop_id)  
+  mutate(F3 = NA)
+
+other <- pedigree_clean %>% 
+  filter(parent_id %in% pop_id) %>% 
+  rename(F2 = parent_id,
+         F3 = pop_id) 
+  mutate(F1 = NA)
+
+total <- full_join(double, test) %>% 
+  full_join(other) %>% 
+  mutate(f2_year = str_sub(F2, start = 1, end = 2),
+         f3_year = str_sub(F3, start = 1, end = 2))
+
+total <- total %>% 
+  select(sex, F1, f2_year, f3_year)
+
+do.call(rbind, apply(total, 1, function(x) {
+    x <- na.omit(x[-1])
+    data.frame(x = names(x), node = x, 
+               next_x = dplyr::lead(names(x)), 
+               next_node = dplyr::lead(x), row.names = NULL)
+})) %>% 
+  ggplot(aes(x = x,
+                          next_x = next_x,
+                          node = node,
+                          next_node = next_node,
+                          fill = factor(node),
+                          label = node)) +
+    geom_sankey(flow.alpha = 0.5,
+                node.color = NA,
+                show.legend = TRUE) +
+    geom_sankey_text(size = 3, color = "black", fill = NA, hjust = 0, position = position_nudge(x = 0.1))
+ 
+  make_long(F1, f2_year, f3_year)
+unique(total$F3)
+```
+
+```{r}
+ggplot(total, aes(x = x, 
+               next_x = next_x, 
+               node = node, 
+               next_node = next_node, 
+               fill = factor(node), 
+               label = node)) +
+  geom_sankey(flow.alpha = 0.5
+                      , node.color = "black"
+                      ,show.legend = FALSE)+
+  geom_sankey_label(size = 2, color = "black", fill= "white", hjust = -0.1)
+```
+
+```{r}
+# calculate monthly counts
+counts_larval <- counts %>% 
+  filter(facility == "BML") %>% 
+  mutate(date_year = year(date),
+         pop_year = str_sub(pop_id, start = 1, end = 2),
+         pop_year = year(as.Date(pop_year, format = "%y"))) %>% 
+  filter(pop_year == date_year) %>% 
+  group_by(date, pop_id) %>% 
+  summarise(total_count = sum(count)) %>% 
+  mutate(pop_year = str_sub(pop_id, start = 1, end = 2),
+         pop_year = as.Date(pop_year, format = "%y"),
+         age = month(date) - month(pop_year))
+
+# find initial egg counts
+egg_inital <- spawn_clean %>% 
+  filter(!is.na(egg_count), !is.na(progeny_pop_id)) %>% 
+  group_by(progeny_pop_id) %>% 
+  summarise(total_count = sum(egg_count))
+
+ggplot(counts_larval, aes(x = age, y = total_count)) +
+  geom_point(aes(color = pop_id)) +
+  geom_line(aes(color = pop_id))
+```
+

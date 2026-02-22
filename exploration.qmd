@@ -103,6 +103,7 @@ spawn <- spawn %>%
     pop_id == "17-03-01-Tiana/17-03-01-Merida" ~ "17-03-01-Tiana/Merida",
     pop_id == "16-03-02-Acjachemen/16-03-02-Tongva/16-03-02-Miwok/16-03-02-Pomo/16-03-02-Chumash" ~ "16-03-02-NativeTribes",
     pop_id == "19-04-16-Spongebob/19-04-16-Patrick" ~ "19-04-16-Spongebob/Patrick",
+    pop_id == "07-05-19-Jeffrey" ~ "17-05-19-Jeffrey",
     TRUE ~ pop_id
   ))
 ```
@@ -127,7 +128,19 @@ spawn_clean <- spawn %>%
                           TRUE ~ born),
          # calculate age at spawn date
          age = floor(time_length(interval(born, date), "years")),
-         egg_count = as.numeric(egg_count))
+         egg_count = as.numeric(egg_count)) %>% 
+  # add 5 years to wilds, since we do not know their age
+  mutate(age = case_when(pop_id == "04-12-05-Redwood" ~ age + 5,
+                         pop_id == "17-01-31-Loblolly" ~ age + 5,
+                         pop_id == "17-06-09-Sugar" ~ age + 5,
+                         pop_id == "17-05-19-Jeffrey" ~ age + 5,
+                         pop_id == "17-03-15-Ponderosa" ~ age + 5,
+                         pop_id == "17-04-12-Torrey" ~ age + 5,
+                         pop_id == "19-03-18-Ash" ~ age + 5,
+                         pop_id == "17-11-13-Sequoia" ~ age + 5,
+                         TRUE ~ age))
+
+unique(spawn_clean$pop_id)
 
 # female age vs. spawn
 spawn_clean %>% 

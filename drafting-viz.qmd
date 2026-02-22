@@ -2,10 +2,12 @@
 title: "First draft data visualizations for EDS240 infographic"
 format: html
 author: "Leela Dixit"
-date: "02/12/2026"
+date: "02/22/2026"
+editor_options: 
+  chunk_output_type: console
 ---
 
-This file contains the first drafts of three data visualizations for the final project infographic for EDS 240 - Data Visualization and Communication. 
+This file contains the first drafts of three data visualizations for the final project infographic for EDS 240 - Data Visualization and Communication.
 
 The general theme of this infographic is examining the successes and complications for the White Abalone Captive Breeding Program. This program was created in the interest of conserving the endagered White Abalone through captive breeding efforts. Over the last decade, this program has created millions of abalone but are still magnitudes under what is necessary to save this species. This project will focus specifically on reproductive patterns in the various stages of the life cycle present during captive breeding efforts.
 
@@ -17,40 +19,460 @@ What conservation strides (and setbacks) has the White Abalone Captive Breeding 
 
 Given that this program is based in advancing captive reproduction, we will focus on reproductive patterns in 3 life stages of white abalone:
 
-  - Adults: How do males and females differ in their reproductive output based on their age?
-  - Juveniles: Has the program increased the number of non-broodstock aged white abalone over time? How many of those have been sent for outplanting?
-  - Larvae/Pelagic Stages: Have different genetic lines of abalone spawned more, and have those offspring spawned?
-  
+-   Adults: How do males and females differ in their reproductive output based on their age?
+-   Juveniles: Has the program increased the number of non-broodstock aged white abalone over time? How many of those have been sent for outplanting?
+-   Larvae/Pelagic Stages: Have different genetic lines of abalone spawned more, and have those offspring spawned?
+
 ### Variables
 
 Each visualization requires different variables, and different summarizing of those variables. We can break each down to see what we need to visualize:
 
-  - Adults: Sex (categorical), reproductive output (female - numeric, males - integer), age (integer)
-  - Juveniles: Non-broodstock abalone counts (integer), time (numeric, but treated as a factor), outplanting counts (integer)
-  - Larvae/Pelagic Stages: Genetic lines (categorical), reproductive output (female - numeric, males - integer)
+-   Adults: Sex (categorical), reproductive output (female - numeric, males - integer), age (integer)
+-   Juveniles: Non-broodstock abalone counts (integer), time (numeric, but treated as a factor), outplanting counts (integer)
+-   Larvae/Pelagic Stages: Genetic lines (categorical), reproductive output (female - numeric, males - integer)
 
-### Example Visualizations 
+### Example Visualizations
 
 We can search for similar visualizations to base our final visualizations off of based on our artistic vision and our variable types.
 
-1. Adults
+1.  Adults
 
-2. Juveniles
+![](images/heatmap.png)
 
-3. Larvae
+2.  Juveniles
+
+![](images/histogram.png)
+
+3.  Larvae
+
+![](images/sankey.png)
 
 We can also draw out our final visualizations by hand so we have a scaffold to work off of when creating the visualization in R.
 
-1. Adult
+1.  Adult
 
-2. Juveniles
+![](images/adult.png)
 
-3. Larvae
+2.  Juveniles
+
+![](images/juvenile.png)
+
+3.  Larvae
+
+![](images/larvae.png)
+
+### First Draft Visualizations
+Load libraries
+
+```{r}
+library(tidyverse)
+library(here)
+library(janitor)
+library(showtext)
+library(ggsankey)
+library(patchwork)
+```
+
+Read in data
+
+```{r}
+# counts
+counts <- read_csv(here("data", "Count_All_DataRaw.csv")) %>% 
+  clean_names() %>% 
+  remove_empty(c("rows", "cols"))
+# spawning
+spawn <- read_csv(here("data", "Spawning_All_DataRaw.csv")) %>% 
+  clean_names() %>% 
+  remove_empty(c("rows", "cols"))
+#pedigree
+pedigree <- read_csv(here("data", "White_Abalone_Pedigree_Data_Metadata(Pedigree).csv")) %>% 
+  clean_names() %>% 
+  remove_empty(c("rows", "cols"))
+# transfer
+transfer <- read_csv(here("data", "Transfer_All_DataRaw.csv")) %>% 
+  clean_names() %>% 
+  remove_empty(c("rows", "cols"))
+```
+
+Wrangle data
+
+```{r}
+#| output: false
+
+# reconcile multiple pop_ids/messy naming conventions 
+# when dates do not match, choosing the younger one
+
+unique(counts$pop_id)
+counts <- counts %>% 
+  mutate(pop_id = case_when(
+    pop_id == "16-03-02-Acjachemen,\n16-03-12-Tongva,\n16-03-02-Miwok,\n16-03-02-Pomo" ~ "16-03-02-NativeTribes",
+    pop_id == "17-03-01-Merida, 17-03-01-Tiana" ~ "17-03-01-Tiana/Merida",
+    pop_id == "17-03-01-Tiana, 17-03-01-Merida" ~ "17-03-01-Tiana/Merida",
+    pop_id == "16-03-02-Acjachemen, 16-03-02-Tongua, 16-03-02-Miwok, 16-03-02-Pomo" ~ "16-03-02-NativeTribes",
+    pop_id == "22-05-10-Bubbles, 22-05-10-Blossom" ~ "22-05-10-Bubbles/Blossom",
+    pop_id == "19-04-16-Spongebob, 19-04-16-Patrick" ~ "19-04-16-Spongebob/Patrick",
+    pop_id == "19-04-16-Squidward, 18-04-19-Ursula" ~ "19-04-16-Squidward/Ursula",
+    pop_id == "21-04-21-Moderna,\n21-04-21-Pfizer,\n21-04-29-JandJ" ~ "21-04-21-Vaccines",
+    pop_id == "17-03-01-Tiana,\n17-03-01-Merida" ~ "17-03-01-Tiana/Merida",
+    pop_id == "16-03-02-Acjachemen, 16-03-02-Chumash, 16-03-02-Tongva, 16-03-02-Miwok, 16-03-02-Pomo" ~ "16-03-02-NativeTribes",
+    pop_id == "22-03-01-Mardi, 22-03-09-WALLE" ~ "22-03-01-Mardi/WALLE",
+    pop_id == "22-03-01-Mardi, 22-03-09-Walle" ~ "22-03-01-Mardi/WALLE",
+    pop_id == "17-03-01-Belle, 16-03-02-Acjachemen, 16-03-02-Tongva, 16-03-02-Miwok, 16-03-02-Pomo, 16-03-02-Chumash,19-04-16-Squidward, 18-04-19-Ursula, 19-04-16-Spongebob, 19-04-16-Patrick, 17-03-01-Tiana, 17-03-01-Merida, 20-03-10-Smaug" ~ "20-03-10-Mixed",
+    pop_id == "16-03-02-Acjachemen, 16-03-02-Tongva, 16-03-02-Miwok, 16-03-02-Pomo, 16-03-02-Chumash" ~ "16-03-02-NativeTribes",
+    pop_id == "17-03-01-Belle,16-03-02-Acjachemen, 16-03-02-Tongva, 16-03-02-Miwok, 16-03-02-Pomo, 16-03-02-Chumash" ~ "16-03-02-NativeTribes/Belle",
+    pop_id == "25-01-07-Hammerhead, 25-01-07-Nurse, 25-01-07-Epaulette" ~ "25-01-07-Sharks",
+    TRUE ~ pop_id
+  ))
+
+unique(spawn$pop_id)
+spawn <- spawn %>% 
+  mutate(pop_id = case_when(
+    pop_id == "14-04-23-Beaker, 14-05-13-Fozzie" ~ "14-05-13-Fozzie/Beaker",
+    pop_id == "17-03-01-Tiana, 17-03-01-Merida" ~ "17-03-01-Tiana/Merida",
+    pop_id == "19-04-16-Squidward, 18-04-19-Ursula" ~ "19-04-16-Squidward/Ursula",
+    pop_id == "16-03-02-Acjachemen, 16-03-02-Tongva, 16-03-02-Miwok, 16-03-02-Pomo, 16-03-02-Chumash" ~ "16-03-02-NativeTribes",
+    pop_id == "19-04-16-Spongebob, 19-04-16-Patrick" ~ "19-04-16-Spongebob/Patrick",                                                    
+    pop_id == "14-04-30-Beaker,14-05-13-Fozzie" ~ "14-05-13-Fozzie/Beaker",
+    pop_id == "16-03-02-Acjachemen, 16-03-02-Tongva, 16-03-02-Miwok, 16-03-02-Pomo, 16-03-02-Chumash, 16-03-02-Kumeyaay, 16-03-02-Salinan" ~ "16-03-02-NativeTribes",
+    pop_id == "16-03-02-Acjachemen, 16-03-12-Tongva, 16-03-02-Miwok, 16-03-02-Pomo, 16-03-02-Chumash" ~ "16-03-02-NativeTribes",
+    pop_id == "17-03-01-Belle, 16-03-02-Acjachemen, 16-03-02-Tongva, 16-03-02-Miwok, 16-03-02-Pomo, 16-03-02-Chumash" ~ "16-03-02-NativeTribes/Belle", 
+    pop_id == "19-04-16-Squidward/18-04-19-Ursula" ~ "19-04-16-Squidward/Ursula",
+    pop_id == "17-03-01-Tiana/17-03-01-Merida" ~ "17-03-01-Tiana/Merida",
+    pop_id == "16-03-02-Acjachemen/16-03-02-Tongva/16-03-02-Miwok/16-03-02-Pomo/16-03-02-Chumash" ~ "16-03-02-NativeTribes",
+    pop_id == "19-04-16-Spongebob/19-04-16-Patrick" ~ "19-04-16-Spongebob/Patrick",
+    pop_id == "07-05-19-Jeffrey" ~ "17-05-19-Jeffrey",
+    TRUE ~ pop_id
+  ))
+
+# clean transfer data
+transfer_clean <- transfer %>% 
+  filter(life_stage == "settled") %>% 
+  # transform any variable with outplant or growout into only 'outplant'
+  mutate(transport_purpose = case_when(
+    transport_purpose == "Outplant" ~ "outplant",
+    transport_purpose == "Outplant, Growout" ~ "outplant",
+    transport_purpose == "growout, outplant" ~ "outplant",
+    transport_purpose == "Growout" ~ "outplant",
+    transport_purpose == "grow-out" ~ "outplant",
+    transport_purpose == "growout" ~ "outplant",
+    TRUE ~ transport_purpose))
+
+# clean spawning data
+spawn_clean <- spawn %>% 
+  # remove unknown popID since no date
+  filter(pop_id != "NA",
+         pop_id != "UNKNOWN") %>% 
+  mutate(born = str_sub(pop_id, start = 1, end = 8), # pull out years from pop ID
+         born = as.Date(born, format = "%y-%m-%d"),
+         # fix date for swedish fish pop since only year
+         born = case_when(pop_id == "03-F1-SwedishChef" ~ as.Date("2003-01-01"),
+                          TRUE ~ born),
+         # calculate age at spawn date
+         age = floor(time_length(interval(born, date), "years")),
+         egg_count = as.numeric(egg_count)) %>% 
+  # add 5 years to wilds, since we do not know their age
+  mutate(age = case_when(pop_id == "04-12-05-Redwood" ~ age + 5,
+                         pop_id == "17-01-31-Loblolly" ~ age + 5,
+                         pop_id == "17-06-09-Sugar" ~ age + 5,
+                         pop_id == "17-05-19-Jeffrey" ~ age + 5,
+                         pop_id == "17-03-15-Ponderosa" ~ age + 5,
+                         pop_id == "17-04-12-Torrey" ~ age + 5,
+                         pop_id == "19-03-18-Ash" ~ age + 5,
+                         pop_id == "17-11-13-Sequoia" ~ age + 5,
+                         TRUE ~ age))
+
+# clean counts
+counts_clean <- counts %>% 
+  filter(rack_type != "BST") %>% 
+  mutate(year = year(date)) %>% 
+#counts_clean <- counts_clean %>% 
+  filter(facility == "BML") %>% 
+  group_by(date) %>% 
+  summarise(count = sum(count, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(type = "counts")
+```
+
+Initialize color theme
+```{r}
+pal <- c("background" = "#113F5D",
+         "pink" = "#B05880",
+         "green" = "#646F4B",
+         "steel" = "#7D98A1",
+         "lightsteel" = "#CFDEE7",
+         "rose" = "#C3979F")
+```
+
+Initialize fonts
+```{r}
+font_add_google(name = "Zalando Sans Expanded", family = "zalando")
+font_add_google(name = "Nunito", family = "nunito")
+```
+
+Adults
+
+Heatmap plot
+
+```{r}
+spawn_clean <- spawn_clean %>% 
+  mutate(sex = ifelse(!is.na(egg_count), "F", NA)) %>% 
+  mutate(sex = ifelse(!is.na(time_initial_spawn) & is.na(egg_count), "M", sex))
+
+spawn_female <- spawn_clean %>% 
+  filter(!is.na(sex),
+         sex == "F") %>%
+  group_by(age, sex) %>% 
+  summarise(egg_count = sum(egg_count)) %>% 
+  ungroup() %>% 
+  mutate(ratio = egg_count / max(egg_count))
+
+spawn_male <- spawn_clean %>% 
+  filter(!is.na(sex),
+         sex == "M") %>%
+  group_by(age, sex) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  mutate(ratio = n / max(n)) 
+
+spawn_plot <- full_join(spawn_female, spawn_male)
+```
+
+plot!
+```{r}
+showtext_auto(enable = TRUE)
+
+annotation_heatmap1 <- glue::glue(
+  "No abalone have spawned 
+  at these ages in captivity")
+
+ggplot(spawn_plot, aes(x = age, y = sex, fill = ratio)) +
+  geom_tile() + 
+  coord_fixed() +
+  annotate(geom = "text",
+           x = 16, y = 1.5,
+           label = annotation_heatmap1,
+           color = pal['lightsteel'],
+           hjust = "center",
+           family = "nunito") +
+  scale_fill_gradient(low = pal['lightsteel'], high = pal["pink"]) +
+  theme_classic(base_size = 15) +
+  labs(title = "White abalone reproductive output by age and sex",
+       subtitle = "Peak spawning age is around 5 years old") +
+  theme(legend.direction = "horizontal",
+        legend.position = "bottom",
+        panel.background = element_rect(fill = pal['background']),
+        plot.background = element_rect(fill = pal['background'])) +
+  guides(fill = guide_colorbar(title = "Reproductive\nOutput", 
+                               barwidth = 15, barheight = 1))
+
+showtext_auto(enable = FALSE)
+```
+
+Juveniles
+
+```{r}
+transfer_outplant <- transfer_clean %>% 
+  filter(#transport_purpose == "outplant",
+         origin_facility == "BML") %>% 
+  group_by(date) %>% 
+  summarise(count = sum(as.numeric(numberofanimals), na.rm = TRUE)) %>%
+  ungroup() %>% 
+  mutate(type = "transfer")
+
+counts_outplant <- full_join(transfer_outplant, counts_clean) %>% 
+  mutate(year = year(date)) %>% 
+  group_by(year, type) %>% 
+  summarise(count = round(sum(count))) %>% 
+  ungroup() %>%
+  filter(year != 2025)
+
+ggplot(counts_outplant %>% filter(type == "counts"), 
+       aes(x = year, y = count)) +
+  geom_col(width = .85, fill = pal["rose"]) +
+  geom_smooth(data = counts_outplant %>% filter(type == "counts"),
+              se = FALSE, color = pal["rose"]) +
+  geom_col(data = counts_outplant %>% filter(type == "transfer"),
+           aes(x = year, y = count),
+           fill = pal['pink'], width = .5) +
+  geom_smooth(data = counts_outplant %>% filter(type == "transfer"),
+              se = FALSE, color = pal['pink']) +
+  labs(title = "Juvenile white abalone and outplanting counts") +
+  theme(base_size = 15,
+        panel.background = element_rect(fill = pal['background']),
+        plot.background = element_rect(fill = pal['background']),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+```
+
+Larval genetics
+
+female
+```{r}
+pedigree_f <- pedigree %>% 
+  filter(!is.na(mother_pop_id)) %>% 
+  #filter(if_any(c(mother_pop_id), ~str_detect(., test))) %>% 
+  select(pop_id, mother_pop_id) %>%
+  separate_longer_delim(mother_pop_id, delim = ", ") %>% 
+  separate_longer_delim(mother_pop_id, delim = "/") %>% 
+  separate_longer_delim(mother_pop_id, delim = ";") %>% 
+  separate_longer_delim(mother_pop_id, delim = " OR ") %>% 
+  mutate(mother_pop_id = case_when(
+    mother_pop_id == "01-04-23-Scooter (GRN_310)" ~ "01-04-23-Scooter",
+    mother_pop_id == "13-04-04-Rowlf (ORN_032)" ~ "13-04-04-Rowlf",
+    mother_pop_id == "Parental PopIDs possible: 16-03-02-Acjachemen" ~ "16-03-02-Acjachemen",
+    mother_pop_id == "SEE NOTES. N=6 females:\nN=2 18-04-09-Ursula (NYL_667" ~ "18-04-09-Ursula",
+    mother_pop_id == "\nN=1 19-04-16-Patrick (NYL_681)" ~ "19-04-16-Patrick",
+    mother_pop_id == "\nN=1 16-03-02-Acjachemen" ~ "16-03-02-Acjachemen",
+    mother_pop_id == "16-03-02-Chumash (LAV_063)" ~ "16-03-02-Chumash",
+    mother_pop_id == "01-04-23-Scooter (GRN_364)" ~ "01-04-23-Scooter",
+    mother_pop_id == "13-04-04-Rowlf (ORN_017)" ~ "13-04-04-Rowlf",
+    mother_pop_id == "\nN=1 19-04-16-Spongebob (NGN_624)" ~ "19-04-16-Spongebob",
+    mother_pop_id == "17-03-01-Tiana (LAV_006)" ~ "17-03-01-Tiana",
+    mother_pop_id == "\nN=1 17-03-01-Merida" ~ "17-03-01-Merida",
+    mother_pop_id == "20-03-10-Smaug\n" ~ "20-03-10-Smaug",
+    TRUE ~ mother_pop_id
+  )) %>% 
+  filter(mother_pop_id != "NYL_677)",
+         mother_pop_id != "Unknown PopID BST Tank 5")
+
+pedigree_f_brood <- tibble(unique(pedigree_f$mother_pop_id)) %>% 
+  rename(mother_pop_id = "unique(pedigree_f$mother_pop_id)") %>% 
+  left_join(pedigree_f) %>% 
+  rename(f1 = mother_pop_id,
+         mother_pop_id = pop_id) 
+
+pedigree_f_1 <- pedigree_f_brood %>% 
+  filter(!f1 %in% mother_pop_id)
+
+pedigree_f_2 <- pedigree_f_brood %>% 
+  filter(f1 %in% mother_pop_id) %>% 
+  rename(mother_pop_id = f1,
+         f3 = mother_pop_id)
+
+pedigree_f_long <- pedigree_f_1 %>% 
+  left_join(pedigree_f_2) %>% 
+  rename(f2 = mother_pop_id) %>% 
+  filter(!is.na(f3)) %>% 
+  make_long(f1, f2, f3)
+
+wilds = c('17-03-15-Ponderosa' = "#B05880", '17-01-31-Loblolly' = "#B05880", '17-03-01-Tiana' = "#B05880","19-04-16-Plankton" = "#B05880", "19-04-16-Spongebob" = "#B05880", "19-04-16-Patrick" = "#B05880", "21-04-21-BioNTech" = "#B05880", "19-04-16-Squidward" = "#B05880", "20-03-10-Smaug" = "#B05880", "22-02-10-Ciri" = "#B05880")
+```
+
+Plot female genetic lines.
+```{r}
+ped_female <- ggplot(pedigree_f_long, aes(x = x, 
+               next_x = next_x, 
+               node = node, 
+               next_node = next_node, 
+               fill = factor(node), 
+               label = node)) +
+  geom_sankey(flow.alpha = 0.7,
+              show.legend = FALSE) +
+  scale_fill_manual(values = c('17-03-15-Ponderosa' = "#EB6534",
+                               '17-01-31-Loblolly'  ="#B05880",
+                               '17-03-01-Tiana' = "#B05880",
+                               "19-04-16-Plankton" = "#B05880",
+                               "19-04-16-Spongebob" = "#B05880",
+                               "19-04-16-Patrick" = "#B05880",
+                               "21-04-21-BioNTech" = "#B05880",
+                               "19-04-16-Squidward" = "#B05880",
+                               "20-03-10-Smaug" = "#B05880",
+                               "22-02-10-Ciri" = "#C3979F")) +
+  labs(title = "Female genetic lines") +
+  theme_minimal(base_size = 15) +
+  theme(panel.background = element_rect(fill = pal['background']),
+        plot.background = element_rect(fill = pal['background']),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+```
 
 
+males
+```{r}
+pedigree_m <- pedigree %>% 
+  filter(!is.na(father_pop_id)) %>% 
+  select(pop_id, father_pop_id) %>% 
+  separate_longer_delim(father_pop_id, delim = ", ") %>% 
+  separate_longer_delim(father_pop_id, delim = "/") %>% 
+  separate_longer_delim(father_pop_id, delim = ";") %>% 
+  separate_longer_delim(father_pop_id, delim = " OR ") %>% 
+  separate_longer_delim(father_pop_id, delim = ",") %>% 
+  separate_longer_delim(father_pop_id, delim = "\n") %>%
+  mutate(father_pop_id = case_when(
+    father_pop_id == "Parental PopIDs possible: 16-03-02-Acjachemen" ~ "16-03-02-Acjachemen",
+    father_pop_id == "13-04-04-Rowlf and" ~ "13-04-04-Rowlf",
+    father_pop_id == "or 13-03-02-Janice" ~ "13-03-02-Janice",
+    father_pop_id == "17-03-01-Merida (WHT_159)" ~ "17-03-01-Merida",
+    father_pop_id == "17-03-01-Belle (WHT(TAN?)_222)" ~ "17-03-01-Belle",
+    father_pop_id == "Jabalone Expt: 18-04-19-Ursula (NYL_672)" ~ "18-04-19-Ursula",
+    father_pop_id == "18-04-19-Ursula (NYL_669)" ~ "18-04-19-Ursula",
+    father_pop_id == "17-03-01-Belle (NGN_151)" ~ "17-03-01-Belle",
+    father_pop_id == "01-04-23-Scooter (GRN_371" ~ "01-04-23-Scooter",
+    father_pop_id == "13-03-02-Janice (ORN_001)" ~ "13-03-02-Janice",
+    father_pop_id == "01-04-23-Scooter(GRN_305" ~ "01-04-23-Scooter",
+    father_pop_id == "\n17-03-01-Belle (n=1) " ~ "17-03-01-Belle",
+    father_pop_id == "16-03-02-Salinan (n=1)" ~ "16-03-02-Salinan",
+    father_pop_id == "17-03-01-Belle (n=1) " ~ "17-03-01-Belle",
+    TRUE ~ father_pop_id
+  )) %>% 
+  filter(father_pop_id != "",
+         father_pop_id != "GRN_371)",
+         father_pop_id != "GRN_305)")
 
-could pull egg counts from pop, then 6 month counts to see survival
+pedigree_m_brood <- tibble(unique(pedigree_m$father_pop_id)) %>% 
+  rename(father_pop_id = "unique(pedigree_m$father_pop_id)") %>% 
+  left_join(pedigree_m) %>% 
+  rename(f1 = father_pop_id,
+         father_pop_id = pop_id) 
+
+pedigree_m_1 <- pedigree_m_brood %>% 
+  filter(!f1 %in% father_pop_id)
+
+pedigree_m_2 <- pedigree_m_brood %>% 
+  filter(f1 %in% father_pop_id) %>% 
+  rename(father_pop_id = f1,
+         f3 = father_pop_id)
+
+pedigree_m_long <- pedigree_m_1 %>% 
+  left_join(pedigree_m_2) %>% 
+  rename(f2 = father_pop_id) %>% 
+  filter(!is.na(f3)) %>% 
+  make_long(f3, f2, f1)
+```
+
+Plot male genetic lines.
+```{r}
+ped_male <- ggplot(pedigree_m_long, aes(x = x, 
+               next_x = next_x, 
+               node = node, 
+               next_node = next_node, 
+               fill = factor(node), 
+               label = node)) +
+  geom_sankey(flow.alpha = 0.7,
+              show.legend = FALSE) +
+  scale_fill_manual(values = c('17-11-13-Sequoia' = "#113F5D",
+                               '23-11-18-Artichoke'  ="#113F5D",
+                               '24-02-13-Goldfinch' = "#113F5D",
+                               "24-02-13-Osprey" = "red",
+                               "24-02-13-Scrubjay" = "red",
+                               "19-04-16-Patrick" = "red",
+                               "24-02-13-Seagull" = "red",
+                               "24-04-23-Nemo" = "red",
+                               "25-01-07-Epaulette" = "red",
+                               "2025-01-07-Rocky" = "red",
+                               "25-05-15-Cauliflower" = "pink")) +
+  labs(title = "Male genetic lines") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank(),
+        panel.background = element_rect(fill = pal['lightsteel']),
+        plot.background = element_rect(fill = pal['lightsteel']),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+```
 
 
-
+```{r}
+(ped_female | ped_male)
+```
 
