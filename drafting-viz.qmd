@@ -2,16 +2,18 @@
 title: "First draft data visualizations for EDS240 infographic"
 format: html
 author: "Leela Dixit"
-date: "02/22/2026"
+date: "02/23/2026"
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
+message: false
+warning: false
 ---
 
 This file contains the first drafts of three data visualizations for the final project infographic for EDS 240 - Data Visualization and Communication.
 
 The general theme of this infographic is examining the successes and complications for the White Abalone Captive Breeding Program. This program was created in the interest of conserving the endagered White Abalone through captive breeding efforts. Over the last decade, this program has created millions of abalone but are still magnitudes under what is necessary to save this species. This project will focus specifically on reproductive patterns in the various stages of the life cycle present during captive breeding efforts.
 
-### Research Questions
+## Research Questions
 
 The overall question for this infographic is:
 
@@ -23,7 +25,7 @@ Given that this program is based in advancing captive reproduction, we will focu
 -   Juveniles: Has the program increased the number of non-broodstock aged white abalone over time? How many of those have been sent for outplanting?
 -   Larvae/Pelagic Stages: Have different genetic lines of abalone spawned more, and have those offspring spawned?
 
-### Variables
+## Variables
 
 Each visualization requires different variables, and different summarizing of those variables. We can break each down to see what we need to visualize:
 
@@ -31,7 +33,7 @@ Each visualization requires different variables, and different summarizing of th
 -   Juveniles: Non-broodstock abalone counts (integer), time (numeric, but treated as a factor), outplanting counts (integer)
 -   Larvae/Pelagic Stages: Genetic lines (categorical), reproductive output (female - numeric, males - integer)
 
-### Example Visualizations
+## Example Visualizations
 
 We can search for similar visualizations to base our final visualizations off of based on our artistic vision and our variable types.
 
@@ -61,7 +63,7 @@ We can also draw out our final visualizations by hand so we have a scaffold to w
 
 ![](images/larvae.png)
 
-### First Draft Visualizations
+## First Draft Visualizations
 Load libraries
 
 ```{r}
@@ -195,7 +197,9 @@ counts_clean <- counts %>%
 
 Initialize color theme
 ```{r}
-pal <- c("background" = "#113F5D",
+pal <- c("background" = "#E9E5C7",
+         "dark" = "#1F363D",
+         "light" = "#40798C",
          "pink" = "#B05880",
          "green" = "#646F4B",
          "steel" = "#7D98A1",
@@ -206,13 +210,13 @@ pal <- c("background" = "#113F5D",
 Initialize fonts
 ```{r}
 font_add_google(name = "Zalando Sans Expanded", family = "zalando")
-font_add_google(name = "Nunito", family = "nunito")
+font_add_google(name = "Montserrat", family = "montserrat")
 ```
 
-Adults
+## Adults
+We will represent peak spawning age with a heatmap plot.
 
-Heatmap plot
-
+1. Wrangle data for a heatmap plot.
 ```{r}
 spawn_clean <- spawn_clean %>% 
   mutate(sex = ifelse(!is.na(egg_count), "F", NA)) %>% 
@@ -237,7 +241,7 @@ spawn_male <- spawn_clean %>%
 spawn_plot <- full_join(spawn_female, spawn_male)
 ```
 
-plot!
+2. plot!
 ```{r}
 showtext_auto(enable = TRUE)
 
@@ -245,31 +249,36 @@ annotation_heatmap1 <- glue::glue(
   "No abalone have spawned 
   at these ages in captivity")
 
-ggplot(spawn_plot, aes(x = age, y = sex, fill = ratio)) +
+heatmap <- ggplot(spawn_plot, aes(x = age, y = sex, fill = ratio)) +
   geom_tile() + 
   coord_fixed() +
   annotate(geom = "text",
            x = 16, y = 1.5,
            label = annotation_heatmap1,
-           color = pal['lightsteel'],
+           color = pal['dark'],
            hjust = "center",
-           family = "nunito") +
-  scale_fill_gradient(low = pal['lightsteel'], high = pal["pink"]) +
+           family = "montserrat") +
+  scale_fill_gradient(low = pal['steel'], high = pal["dark"]) +
   theme_classic(base_size = 15) +
   labs(title = "White abalone reproductive output by age and sex",
        subtitle = "Peak spawning age is around 5 years old") +
   theme(legend.direction = "horizontal",
         legend.position = "bottom",
         panel.background = element_rect(fill = pal['background']),
-        plot.background = element_rect(fill = pal['background'])) +
+        plot.background = element_rect(fill = pal['background']),
+        plot.title = ggtext::element_markdown(family = "zalando",
+                                              color = pal['dark']),
+        legend.box.background = element_blank()) +
   guides(fill = guide_colorbar(title = "Reproductive\nOutput", 
                                barwidth = 15, barheight = 1))
 
 showtext_auto(enable = FALSE)
 ```
 
-Juveniles
+## Juveniles
+We will represent total captive and outplanted abalone counts with a simple histogram.
 
+1. Wrangle data for histogram.
 ```{r}
 transfer_outplant <- transfer_clean %>% 
   filter(#transport_purpose == "outplant",
@@ -285,28 +294,82 @@ counts_outplant <- full_join(transfer_outplant, counts_clean) %>%
   summarise(count = round(sum(count))) %>% 
   ungroup() %>%
   filter(year != 2025)
+```
 
-ggplot(counts_outplant %>% filter(type == "counts"), 
+2. Plot!
+```{r}
+years <- c("2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024")
+breaks <- c(2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024)
+
+title <- glue::glue(
+  "Juvenile
+  <span style='color:#40798C;'>White Abalone</span>
+  and
+  <span style='color:#1F363D;'>outplanting</span>
+  counts"
+)
+
+annotation_histo1 <- glue::glue(
+  "COVID-19 Shutdown
+  decreased production")
+
+annotation_histo2 <- glue::glue(
+  "Lagged effect from
+  COVID-19 Shutdown")
+
+showtext_auto(enable = TRUE)
+
+histogram <- ggplot(counts_outplant %>% filter(type == "counts"), 
        aes(x = year, y = count)) +
-  geom_col(width = .85, fill = pal["rose"]) +
+  geom_col(width = .85, fill = pal["light"]) +
   geom_smooth(data = counts_outplant %>% filter(type == "counts"),
-              se = FALSE, color = pal["rose"]) +
+              se = FALSE, color = pal["light"]) +
   geom_col(data = counts_outplant %>% filter(type == "transfer"),
            aes(x = year, y = count),
-           fill = pal['pink'], width = .5) +
+           fill = pal['dark'], width = .5) +
   geom_smooth(data = counts_outplant %>% filter(type == "transfer"),
-              se = FALSE, color = pal['pink']) +
-  labs(title = "Juvenile white abalone and outplanting counts") +
-  theme(base_size = 15,
+              se = FALSE, color = pal['dark']) +
+  annotate(geom = "text",
+           x = 2020, y = 20000,
+           label = annotation_histo1,
+           color = pal['dark'],
+           hjust = "center",
+           family = "montserrat",
+           size = 8) +
+  annotate(geom = "text",
+           x = 2023.5, y = 10000,
+           label = annotation_histo2,
+           color = pal['dark'],
+           hjust = "center",
+           family = "montserrat",
+           size = 8) +
+  labs(title = title,
+       ) +
+  theme(base_size = 10,
         panel.background = element_rect(fill = pal['background']),
         plot.background = element_rect(fill = pal['background']),
         panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())
+        panel.grid.minor = element_blank(),
+        plot.title = ggtext::element_markdown(family = "zalando",
+                                              color = "#040D10",
+                                              size = rel(3)),
+        axis.title.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(size = rel(2), 
+                                   family = "montserrat"),
+        axis.title.x = element_text(size = rel(2.5),
+                                    family = "montserrat")) +
+  scale_x_continuous(breaks = breaks,
+                     labels = years)
+
+showtext_auto(enable = FALSE)
 ```
 
 Larval genetics
+We will visualize the presence of male and female wild white abalone genetics in captive white abalone populations with a side-by-side sankey diagram. 
 
-female
+1. Wrangle data for female sankey diagram.
 ```{r}
 pedigree_f <- pedigree %>% 
   filter(!is.na(mother_pop_id)) %>% 
@@ -354,12 +417,12 @@ pedigree_f_long <- pedigree_f_1 %>%
   rename(f2 = mother_pop_id) %>% 
   filter(!is.na(f3)) %>% 
   make_long(f1, f2, f3)
-
-wilds = c('17-03-15-Ponderosa' = "#B05880", '17-01-31-Loblolly' = "#B05880", '17-03-01-Tiana' = "#B05880","19-04-16-Plankton" = "#B05880", "19-04-16-Spongebob" = "#B05880", "19-04-16-Patrick" = "#B05880", "21-04-21-BioNTech" = "#B05880", "19-04-16-Squidward" = "#B05880", "20-03-10-Smaug" = "#B05880", "22-02-10-Ciri" = "#B05880")
 ```
 
-Plot female genetic lines.
+2. Plot female genetic lines.
 ```{r}
+showtext_auto(enable = TRUE)
+
 ped_female <- ggplot(pedigree_f_long, aes(x = x, 
                next_x = next_x, 
                node = node, 
@@ -368,27 +431,51 @@ ped_female <- ggplot(pedigree_f_long, aes(x = x,
                label = node)) +
   geom_sankey(flow.alpha = 0.7,
               show.legend = FALSE) +
-  scale_fill_manual(values = c('17-03-15-Ponderosa' = "#EB6534",
-                               '17-01-31-Loblolly'  ="#B05880",
-                               '17-03-01-Tiana' = "#B05880",
-                               "19-04-16-Plankton" = "#B05880",
-                               "19-04-16-Spongebob" = "#B05880",
-                               "19-04-16-Patrick" = "#B05880",
-                               "21-04-21-BioNTech" = "#B05880",
-                               "19-04-16-Squidward" = "#B05880",
-                               "20-03-10-Smaug" = "#B05880",
-                               "22-02-10-Ciri" = "#C3979F")) +
+  scale_fill_manual(values = c('17-03-15-Ponderosa' = "#1F363D",
+                               '17-01-31-Loblolly'  ="#1F363D",
+                               '17-03-01-Tiana' = "#1F363D",
+                               "19-04-16-Plankton" = "#1F363D",
+                               "19-04-16-Spongebob" = "#1F363D",
+                               "19-04-16-Patrick" = "#1F363D",
+                               "21-04-21-BioNTech" = "#1F363D",
+                               "19-04-16-Squidward" = "#1F363D",
+                               "20-03-10-Smaug" = "#1F363D",
+                               "22-02-10-Ciri" = "#1F363D",
+                               "22-05-10-Buttercup" = "#1F363D",
+                               "24-02-13-Cormorant" = "#1F363D",
+                               "23-02-08-Eevee" = "#1F363D",
+                               "23-02-08-Polywag" = "#1F363D",
+                               "23-04-05-Fiona" = "#1F363D",
+                               "23-04-05-Farquaad" = "#1F363D",
+                               "23-05-17-Funktopus" = "#1F363D",
+                               "23-11-18-Artichoke" = "#1F363D",
+                               "24-02-13-Goldfinch" = "#1F363D",
+                               "24-02-13-Scrubjay" = "#1F363D",
+                               "25-01-07-Nurse" = "#1F363D",
+                               "25-03-11-Merry" = "#1F363D",
+                               "25-03-11-Samwise" = "#1F363D",
+                               "25-03-11-Rosie" = "#1F363D",
+                               "25-05-15-Cauliflower" = "#1F363D",
+                               "24-02-13-Peregrine" = "#1F363D",
+                               "24-02-13-Seagull" = "#1F363D",
+                               "25-01-07-Sevengill" = "#1F363D",
+                               "25-01-07-Whale" = "#1F363D",
+                               "25-03-11-Bilbo" = "#1F363D")) +
   labs(title = "Female genetic lines") +
   theme_minimal(base_size = 15) +
   theme(panel.background = element_rect(fill = pal['background']),
         plot.background = element_rect(fill = pal['background']),
         axis.text.y = element_blank(),
         panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())
+        panel.grid.minor = element_blank(),
+        plot.title = ggtext::element_markdown(family = "zalando",
+                                              color = pal['dark']))
+
+showtext_auto(enable = FALSE)
 ```
 
 
-males
+3. Wrangle data for male sankey diagram.
 ```{r}
 pedigree_m <- pedigree %>% 
   filter(!is.na(father_pop_id)) %>% 
@@ -438,11 +525,13 @@ pedigree_m_long <- pedigree_m_1 %>%
   left_join(pedigree_m_2) %>% 
   rename(f2 = father_pop_id) %>% 
   filter(!is.na(f3)) %>% 
-  make_long(f3, f2, f1)
+  make_long(f1, f2, f3)
 ```
 
-Plot male genetic lines.
+4. Plot male genetic lines.
 ```{r}
+showtext_auto(enable = TRUE)
+
 ped_male <- ggplot(pedigree_m_long, aes(x = x, 
                next_x = next_x, 
                node = node, 
@@ -451,28 +540,80 @@ ped_male <- ggplot(pedigree_m_long, aes(x = x,
                label = node)) +
   geom_sankey(flow.alpha = 0.7,
               show.legend = FALSE) +
-  scale_fill_manual(values = c('17-11-13-Sequoia' = "#113F5D",
-                               '23-11-18-Artichoke'  ="#113F5D",
-                               '24-02-13-Goldfinch' = "#113F5D",
-                               "24-02-13-Osprey" = "red",
-                               "24-02-13-Scrubjay" = "red",
-                               "19-04-16-Patrick" = "red",
-                               "24-02-13-Seagull" = "red",
-                               "24-04-23-Nemo" = "red",
-                               "25-01-07-Epaulette" = "red",
-                               "2025-01-07-Rocky" = "red",
-                               "25-05-15-Cauliflower" = "pink")) +
+  scale_fill_manual(values = c('17-11-13-Sequoia' = "#1F363D",
+                               "19-04-16-Patrick" = "#1F363D",
+                               "23-11-18-Artichoke" = "#1F363D",
+                               '24-02-13-Goldfinch' = "#1F363D",
+                               "24-02-13-Osprey" = "#1F363D",
+                               "24-02-13-Scrubjay" = "#1F363D",
+                               "24-02-13-Seagull" = "#1F363D",
+                               "24-04-23-Nemo" = "#1F363D",
+                               "25-01-07-Epaulette" = "#1F363D",
+                               "2025-01-07-Rocky" = "#1F363D",
+                               "25-05-15-Cauliflower" = "#1F363D"
+                               )) +
   labs(title = "Male genetic lines") +
-  theme_minimal() +
+  theme_minimal(base_size = 15) +
   theme(axis.text.y = element_blank(),
-        panel.background = element_rect(fill = pal['lightsteel']),
-        plot.background = element_rect(fill = pal['lightsteel']),
+        panel.background = element_rect(fill = pal['background']),
+        plot.background = element_rect(fill = pal['background']),
         panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())
+        panel.grid.minor = element_blank(),
+        plot.title = ggtext::element_markdown(family = "zalando",
+                                              color = pal['dark']))
+
+showtext_auto(enable = FALSE)
 ```
 
-
+5. Patch male and female sankey diagrams together.
 ```{r}
-(ped_female | ped_male)
+sankey <- (ped_female | ped_male)
 ```
 
+Save all plots.
+```{r}
+showtext_auto(enable = TRUE)
+showtext_opts(dpi = 300)
+
+ggsave(
+  file = here("images", "heatmap.pdf"),
+  plot = heatmap,
+  device = "pdf",
+  width = 14, height = 5, unit = "in",
+  dpi = 300
+)
+ggsave(
+  file = here("images", "histogram.pdf"),
+  plot = histogram,
+  device = "pdf",
+  width = 14, height = 9, unit = "in",
+  dpi = 300
+)
+ggsave(
+  file = here("images", "sankey.pdf"),
+  plot = sankey,
+  device = "pdf",
+  width = 20, height = 9, unit = "in",
+  dpi = 300
+)
+
+showtext_auto(enable = FALSE)
+```
+
+### Conclusions
+
+1. What are the key insights you want your infographic to communicate, and how will your design choices help highlight and support those messages?
+
+They key takeaways I want my infographic to communicate is that the White Abalone Captive Breeding program has, over the last decade of the program, had a lot of success in their captive breeding efforts but that there are still uncertainties and limitations to overcome. Ideally, each plot has a "success" and "limitation" that can be interpreted, which I can help facilitate with targeted annotations, limiting visual noise to uneccessary patterns, and intentional color choices that draw the eyes to what messages I am trying to show.
+
+2. What challenges did you encounter or anticipate encountering as you continue to build / iterate on your visualizations in R? If you struggled with mocking up any of your three visualizations, describe those challenges here.
+
+My biggest challenge was having a vision for my visualization, executing that vision, and realizing my data simply do not work because of either small sample size, insufficient data, or patterns not being represented well. This required a lot of going back to the drawing board until I found appropriate viz options. The Sankey diagram was particularly challenging, as the initial message I was hoping to send was extremely complicated to actually code. I ended up shifting the message slightly so it still fits my story, but is also feasible to code. Additionally, I'm having issues with font not showing up for some plots, and will need to troubleshoot that some more.
+
+3. What ggplot extension tools / packages do you need to use to build your visualizations? Are there any that we haven’t covered in class that you’ll be learning how to use for your visualizations?
+
+I will be using `showtext` for font additions, and `patchwork` to visualize the two sankey diagrams next to each other. `ggsankey` is the package that integrates sankey diagrams into ggplot. After trying a few different packages, this was the most seamless and easy to use with the time constraints of the program.
+
+4. What feedback do you need from the instructional team and / or your peers to ensure that your intended message and key insights are clear?
+
+My main issue right now is my color scheme and organization. I don't like my colors, as I am trying to integrate the White Abalone team's blue color and a white abalone's pink shell. I think perhaps I need to just diverge from those colors to something new, as I am struggling with the darker background. I included a bunch of variations of the colors I chose, but honestly I do not like any of them! So any feedback is appreciated. I also am curious if my juvenile histogram plot is both informative and visually interesting. I struggled to think of different ways to show the lagged trend, but histograms seemed to be the best.
